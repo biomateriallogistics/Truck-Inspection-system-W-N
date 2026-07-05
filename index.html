@@ -252,6 +252,10 @@
   </script>
 </head>
 <body>
+  <!-- ═══ CONNECTION STATUS BAR ═══ -->
+  <div id="sbStatus" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9999;padding:10px 16px;font-family:Sarabun,sans-serif;font-size:13px;font-weight:700;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.2)"></div>
+
+
 
 <!-- ══ WELCOME SCREEN ════════════════════════════════════════════ -->
 <div id="welcome" style="display:flex">
@@ -803,14 +807,48 @@ function goPage(id){
 // ══ INIT ══════════════════════════════════════════════════════════
 window.addEventListener('load',async function(){
   if(isMobile()){document.getElementById('sbEl').classList.add('hide');}
+
+  // ── Show status bar ───────────────────────────────────
+  function sbShow(msg, color){
+    var el=document.getElementById('sbStatus');
+    if(!el)return;
+    el.textContent=msg; el.style.background=color||'#f59e0b';
+    el.style.color=color==='#059669'?'#fff':color==='#dc2626'?'#fff':'#1e293b';
+    el.style.display='block';
+    if(color==='#059669')setTimeout(function(){el.style.display='none';},3000);
+  }
+
+  sbShow('⏳ กำลังเชื่อมต่อ Supabase...');
+
+  // ── Guard: check if URL is still placeholder ──────────
+  if(!SUPABASE_URL||SUPABASE_URL.includes('XXXX')){
+    sbShow('❌ ยังไม่ได้ใส่ Supabase URL — เปิดไฟล์ index.html แก้ SUPABASE_URL และ SUPABASE_ANON ก่อน','#dc2626');
+    return;
+  }
+
+  // ── Load HC config ────────────────────────────────────
   try{
-    var {data:cfg}=await sb.from('config').select('key,value');
+    var {data:cfg,error:cfgErr}=await sb.from('config').select('key,value');
+    if(cfgErr)throw cfgErr;
     if(cfg){var c={};cfg.forEach(function(r){c[r.key]=isNaN(r.value)?r.value:Number(r.value);});hcCfg={bp_sys_min:c.hc_bp_sys_min||90,bp_sys_max:c.hc_bp_sys_max||140,bp_dia_min:c.hc_bp_dia_min||60,bp_dia_max:c.hc_bp_dia_max||90,hr_min:c.hc_hr_min||60,hr_max:c.hc_hr_max||100,alc_max:c.hc_alc_max||0};}
-  }catch(e){hcCfg={bp_sys_min:90,bp_sys_max:140,bp_dia_min:60,bp_dia_max:90,hr_min:60,hr_max:100,alc_max:0};}
+  }catch(e){
+    console.warn('config load failed:',e);
+    hcCfg={bp_sys_min:90,bp_sys_max:140,bp_dia_min:60,bp_dia_max:90,hr_min:60,hr_max:100,alc_max:0};
+    if(e&&(e.message||'').includes('fetch')){
+      sbShow('❌ เชื่อมต่อ Supabase ไม่ได้ — ตรวจสอบ SUPABASE_URL และ SUPABASE_ANON ใน index.html','#dc2626');
+      return;
+    }
+  }
   buildHC();buildCheckList();buildDGrid();buildAGrid();
+
+  // ── Load dropdown data ────────────────────────────────
   try{
-    var {data:ropts}=await sb.from('route_options').select('*');
+    var {data:ropts,error:roptsErr}=await sb.from('route_options').select('*');
+    if(roptsErr)throw roptsErr;
     var {data:dreg}=await sb.from('driver_registrations').select('region,contractor,first_name,last_name,plate_number').eq('status','approved');
+    if(!ropts||!ropts.length){
+      sbShow('⚠️ route_options ว่างเปล่า — กรุณารัน seed_data_WN.sql ใน Supabase SQL Editor','#f59e0b');
+    }
     mainDB=(ropts||[]).map(function(r){return[r.region,r.goods_type,r.origin,r.yard,r.destination,r.contractor,r.driver_name,r.plate_number];});
     (dreg||[]).forEach(function(r){mainDB.push([r.region,'','','','',r.contractor,r.first_name+' '+r.last_name,'']);});
     contractors=[...new Set(mainDB.map(function(x){return String(x[5]||'').trim();}))].filter(Boolean);
@@ -819,7 +857,19 @@ window.addEventListener('load',async function(){
     setSel('region',regions);setSel('transportType',transports);setSel('truckType',['รถพ่วง','รถเทรลเลอร์','รถสิบล้อ','รถอื่นๆ']);
     var cos=[...new Set(mainDB.map(function(x){return String(x[5]||'').trim();}))].filter(Boolean);
     setSel('d_co',cos);setSel('a_co',cos);setSel('rd_co',contractors);setSel('rt_co',contractors);
-  }catch(e){console.warn('dropdown load failed:',e);}
+    if(ropts&&ropts.length>0){
+      sbShow('✅ เชื่อมต่อ Supabase สำเร็จ — '+ropts.length+' เส้นทาง | '+cos.length+' ผู้รับเหมา','#059669');
+    }
+  }catch(e){
+    console.error('dropdown load failed:',e);
+    var msg='❌ โหลด dropdown ไม่ได้: '+(e&&e.message?e.message:'unknown error');
+    if(e&&(e.message||'').toLowerCase().includes('fetch')){
+      msg='❌ เชื่อมต่อ Supabase ไม่ได้ — ตรวจ URL และ Key ใน index.html';
+    } else if(e&&(e.message||'').includes('permission')||e&&(e.code||'')==='42501'){
+      msg='❌ RLS บล็อค — ตรวจ Policies ใน Supabase';
+    }
+    sbShow(msg,'#dc2626');
+  }
   if(isAdmin()){document.getElementById('logoutBtn').style.display='block';}
   document.querySelectorAll('input,select,textarea').forEach(function(el){
     el.addEventListener('focus',function(){setTimeout(function(){el.scrollIntoView({behavior:'smooth',block:'center'});},300);});
