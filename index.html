@@ -243,8 +243,8 @@
   <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
   <!-- ════ SUPABASE CONFIG — แก้ 2 บรรทัดนี้ ════ -->
   <script>
-  var SUPABASE_URL  = 'https://XXXX.supabase.co';       // ← ใส่ Project URL
-  var SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.XXXX'; // ← ใส่ anon key
+  var SUPABASE_URL  = 'https://oxkfnicypboqftxdbzll.supabase.co';       // ← ใส่ Project URL
+  var SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im94a2ZuaWN5cGJvcWZ0eGRiemxsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxNDg5NzcsImV4cCI6MjA5ODcyNDk3N30.MVuzDlpZVqo_5NyItd1-No5FUp3bgimHb84PbTELzFw'; // ← ใส่ anon key
   // Supabase client
   var sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
   function imgURL(path){if(!path||path==='-'||path==='Error'||path==='NoFolder')return'';if(path.startsWith('http'))return path;return SUPABASE_URL+'/storage/v1/object/public/img/'+path;}
